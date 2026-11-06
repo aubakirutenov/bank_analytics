@@ -1,0 +1,5 @@
+# macOS system files
+.DS_Store
+
+# Raw data (downloaded from Kaggle, not versioned)
+data/
