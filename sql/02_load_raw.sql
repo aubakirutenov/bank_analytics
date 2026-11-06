@@ -1,3 +1,4 @@
+-- Run from the repo root: psql -U postgres -d bank -f sql/02_load_raw.sql
 TRUNCATE raw.account, raw.card, raw.client, raw.disp, raw.district, raw.loan, raw.standing_order, raw.trans;
 
 \copy raw.account FROM 'data/raw/account.csv' WITH (FORMAT csv, HEADER true, DELIMITER ';')
