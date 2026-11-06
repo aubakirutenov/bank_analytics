@@ -1,3 +1,5 @@
+CREATE SCHEMA IF NOT EXISTS raw;
+
 -- Drop the raw tables first, so the script can be run again
 DROP TABLE IF EXISTS raw.account;
 DROP TABLE IF EXISTS raw.trans;
