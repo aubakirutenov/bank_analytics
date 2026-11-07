@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: berka
+    schema: raw
+    tables:
+      - name: account
+      - name: card
+      - name: client
+      - name: disp
+      - name: district
+      - name: loan
+      - name: standing_order
+      - name: trans
