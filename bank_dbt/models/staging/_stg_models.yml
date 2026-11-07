@@ -105,3 +105,27 @@ models:
           - accepted_values:
               arguments:
                 values: ['OWNER', 'DISPONENT']
+  - name: stg_card
+    columns:
+      - name: card_id
+        data_tests:
+          - unique
+          - not_null
+      - name: disp_id
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_disp')
+                field: disp_id
+      - name: card_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['classic', 'junior', 'gold']
+      - name: issued_date
+        data_tests:
+          - not_null
+      
