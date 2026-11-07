@@ -60,4 +60,22 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['A', 'B', 'C', 'D']    
+                values: ['A', 'B', 'C', 'D']  
+  - name: stg_client
+    columns:
+      - name: client_id
+        data_tests:
+          - unique
+          - not_null
+      - name: district_id
+        data_tests:
+          - not_null
+      - name: gender
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['F', 'M']
+      - name: birth_date
+        data_tests:
+          - not_null  
