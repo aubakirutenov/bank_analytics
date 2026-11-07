@@ -16,3 +16,25 @@ models:
                 values: ['POPLATEK MESICNE', 'POPLATEK TYDNE', 'POPLATEK PO OBRATU']
       - name: opened_date
         data_tests: [not_null]
+  - name: stg_trans
+    description: One row per transaction; empty codes cleaned to NULL, dates as real dates.
+    columns:
+      - name: trans_id
+        data_tests: [unique, not_null]
+      - name: account_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_account')
+                field: account_id
+      - name: type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['PRIJEM', 'VYDAJ', 'VYBER']
+      - name: trans_date
+        data_tests: [not_null]
+      - name: amount
+        data_tests: [not_null]      
