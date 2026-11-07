@@ -79,3 +79,29 @@ models:
       - name: birth_date
         data_tests:
           - not_null  
+  - name: stg_disp
+    columns:
+      - name: disp_id
+        data_tests:
+          - unique
+          - not_null
+      - name: client_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_client')
+                field: client_id
+      - name: account_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_account')
+                field: account_id
+      - name: disp_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['OWNER', 'DISPONENT']
