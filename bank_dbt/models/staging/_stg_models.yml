@@ -165,4 +165,25 @@ models:
           - not_null:
               config:
                 severity: warn
+  - name: stg_standing_order
+    columns:
+      - name: order_id
+        data_tests:
+          - unique
+          - not_null
+      - name: account_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_account')
+                field: account_id
+      - name: amount
+        data_tests:
+          - not_null
+      - name: k_symbol
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['SIPO', 'UVER', 'POJISTNE', 'LEASING']
       
