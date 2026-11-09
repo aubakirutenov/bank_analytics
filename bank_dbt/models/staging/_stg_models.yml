@@ -7,7 +7,12 @@ models:
       - name: account_id
         data_tests: [unique, not_null]
       - name: district_id
-        data_tests: [not_null]
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_district')
+                field: district_id
       - name: frequency
         data_tests:
           - not_null
@@ -70,6 +75,10 @@ models:
       - name: district_id
         data_tests:
           - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_district')
+                field: district_id
       - name: gender
         data_tests:
           - not_null
@@ -128,4 +137,32 @@ models:
       - name: issued_date
         data_tests:
           - not_null
+  - name: stg_district
+    columns:
+      - name: district_id
+        data_tests:
+          - unique
+          - not_null
+      - name: district_name
+        data_tests:
+          - not_null
+      - name: region
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Prague', 'central Bohemia', 'south Bohemia', 'west Bohemia', 'north Bohemia', 'east Bohemia', 'south Moravia', 'north Moravia']
+      - name: inhabitants
+        data_tests:
+          - not_null
+      - name: unemployment_rate_1995
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: crimes_1995
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
       
