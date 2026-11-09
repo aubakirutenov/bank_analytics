@@ -1,0 +1,22 @@
+code_column,code,czech,english
+trans.type,PRIJEM,příjem,credit (money in)
+trans.type,VYDAJ,výdaj,debit (money out)
+trans.type,VYBER,výběr,cash withdrawal
+trans.operation,VYBER,výběr,cash withdrawal
+trans.operation,VKLAD,vklad,cash deposit
+trans.operation,PREVOD Z UCTU,převod z účtu,transfer in from another bank
+trans.operation,PREVOD NA UCET,převod na účet,transfer out to another bank
+trans.operation,VYBER KARTOU,výběr kartou,card withdrawal
+k_symbol,UROK,úrok,interest credited
+k_symbol,SANKC. UROK,sankční úrok,penalty interest (negative balance)
+k_symbol,SLUZBY,služby,statement fee
+k_symbol,SIPO,SIPO,household bills payment
+k_symbol,DUCHOD,důchod,pension
+k_symbol,POJISTNE,pojistné,insurance payment
+k_symbol,UVER,úvěr,loan payment
+k_symbol,LEASING,leasing,leasing payment
+account.frequency,POPLATEK MESICNE,poplatek měsíčně,monthly statement
+account.frequency,POPLATEK TYDNE,poplatek týdně,weekly statement
+account.frequency,POPLATEK PO OBRATU,poplatek po obratu,statement after each transaction
+disp.type,OWNER,majitel,account owner
+disp.type,DISPONENT,disponent,authorised user
