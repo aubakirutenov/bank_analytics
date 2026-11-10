@@ -1,4 +1,4 @@
-# Bank Analytics: which loans go bad?
+# Bank Analytics
 
 An end-to-end BI project on real, anonymized data from a Czech bank (1993–1998): PostgreSQL, a tested dbt star schema, and a Power BI dashboard on loan risk and client activity.
 
