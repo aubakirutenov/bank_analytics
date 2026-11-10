@@ -1,0 +1,216 @@
+version: 2
+
+# Star schema for the Berka bank data.
+# Facts: fact_transactions (one row per transaction), fact_loans (one row per loan).
+# Dimensions: dim_account, dim_client, dim_district, dim_date.
+# Every fact carries the keys of all dimensions it needs, so each dimension
+# connects directly to the facts; dimensions never connect to each other.
+
+models:
+  - name: dim_date
+    description: Calendar. One row per day from the first to the last date in the data.
+    columns:
+      - name: date_day
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_district
+    description: Demographics. One row per district (77).
+    columns:
+      - name: district_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: region
+        data_tests:
+          - not_null
+
+  - name: dim_client
+    description: >
+      One row per client (5,369), with age at the end of the data (1998-12-31),
+      account role and card. A client has exactly one disposition, so the card
+      is a client attribute.
+    columns:
+      - name: client_id
+        description: Primary key. Unique also proves that no client has two dispositions.
+        data_tests:
+          - unique
+          - not_null
+      - name: district_id
+        description: Where the client lives.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_district')
+                field: district_id
+      - name: gender
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['F', 'M']
+      - name: age_group
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['under 18', '18-24', '25-34', '35-44', '45-54', '55-64', '65+']
+      - name: account_id
+        description: The client's account (every client has one).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_account')
+                field: account_id
+      - name: account_role
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['OWNER', 'DISPONENT']
+      - name: card_type
+        description: NULL when the client has no card.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['classic', 'junior', 'gold']
+
+  - name: dim_account
+    description: >
+      One row per account (4,500), with the owner as a column instead of a
+      bridge table: the data has exactly one owner per account.
+    columns:
+      - name: account_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: district_id
+        description: Branch district.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_district')
+                field: district_id
+      - name: owner_client_id
+        description: Not null + unique = every account has exactly one owner, and nobody owns two accounts.
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('dim_client')
+                field: client_id
+      - name: statement_frequency
+        description: English label from the seed; not null proves every code has a label.
+        data_tests:
+          - not_null
+
+  - name: fact_transactions
+    description: One row per transaction (1,056,320), with signed amounts, channel and English labels.
+    columns:
+      - name: trans_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: account_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_account')
+                field: account_id
+      - name: owner_client_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_client')
+                field: client_id
+      - name: district_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_district')
+                field: district_id
+      - name: trans_date
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: direction
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['credit', 'debit']
+      - name: channel
+        description: bank (interest, penalty interest, fees), cash, transfer or card.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['bank', 'cash', 'transfer', 'card']
+      - name: signed_amount
+        data_tests:
+          - not_null
+
+  - name: fact_loans
+    description: >
+      One row per loan (682): terms, outcome, and the account's history before
+      the loan. Pre-loan columns use only transactions dated before granted_date
+      (no data leakage).
+    columns:
+      - name: loan_id
+        description: Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: account_id
+        description: Unique = at most one loan per account.
+        data_tests:
+          - unique
+          - relationships:
+              arguments:
+                to: ref('dim_account')
+                field: account_id
+      - name: owner_client_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_client')
+                field: client_id
+      - name: district_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_district')
+                field: district_id
+      - name: granted_date
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['A', 'B', 'C', 'D']
+      - name: is_bad
+        description: 1 for status B or D, else 0. AVG(is_bad) = bad-loan rate.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+      - name: owner_age_at_loan
+        data_tests:
+          - not_null

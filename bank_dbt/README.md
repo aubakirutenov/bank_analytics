@@ -1,8 +1,8 @@
 # bank_dbt
 
-dbt project for the Berka dataset: real, anonymized data from a Czech bank, 1993–1998. It turns the raw tables in PostgreSQL into cleaned, typed and tested staging models, which are the base for the marts and the loan-risk analysis.
+dbt project for the Berka dataset: real, anonymized data from a Czech bank, 1993–1998. It turns the raw tables in PostgreSQL into cleaned, typed and tested staging models, and those into a tested star schema for the loan-risk analysis and Power BI.
 
-**Status (Nov 9, 2026):** staging layer complete. 8 staging views, 1 seed, 62 tests. Marts are next.
+**Status (Nov 10, 2026):** staging and marts complete. 8 staging views, 6 mart tables, 1 seed, 113 tests. Power BI is next.
 
 ## Stack
 
@@ -20,9 +20,34 @@ dbt debug    # checks the connection and the project
 dbt build    # loads the seed, builds every model and runs every test
 ```
 
-Expected result: `PASS=69 WARN=2 ERROR=0 TOTAL=71`. The two warnings are a known gap in the source (see Data notes).
+Expected result: `PASS=126 WARN=2 ERROR=0 TOTAL=128`. The two warnings are a known gap in the source (see Data notes).
 
-## Models
+## Star schema (marts)
+
+```
+                    dim_date
+                       |
+  dim_client --- fact_transactions --- dim_account
+       \               |                  /
+        \--------- fact_loans ----------/
+                       |
+                  dim_district
+```
+
+Both facts carry the keys of every dimension they use (account, owner, district, date), so each dimension connects directly to the facts and no dimension connects to another one.
+
+| Table | Grain | Rows | Key decisions |
+| --- | --- | --- | --- |
+| fact_transactions | one row per transaction | 1,056,320 | `signed_amount` (+ money in, − money out); `channel` = bank / cash / transfer / card; English labels from the seed |
+| fact_loans | one row per loan | 682 | `is_bad` (1 for status B or D, so AVG = bad-loan rate); owner's age at the loan; account history **before** the loan only (no data leakage) |
+| dim_account | one row per account | 4,500 | owner as a column instead of a bridge table, because every account has exactly one owner |
+| dim_client | one row per client | 5,369 | age at 1998-12-31 and age group; role on the account; card (a client has at most one) |
+| dim_district | one row per district | 77 | demographics plus the change in unemployment 1995–1996 |
+| dim_date | one row per day | from the first to the last date in the data | year, quarter, month, weekday |
+
+Checked in `sql/04_mart_checks.sql` against the raw tables, independently of dbt: row counts and money totals match; 76 of 682 loans (11.1 %) are bad; all 892 cards belong to account owners; every loan has transaction history before it (shortest 102 days, average 398).
+
+## Staging models
 
 | Model | Source table | Rows | What staging does |
 | --- | --- | --- | --- |
@@ -40,6 +65,15 @@ All staging models are views: they are read only by dbt and stay one-to-one with
 
 ## Tests
 
+Marts:
+
+- **Grain:** `assert_marts_keep_staging_grain` checks that every mart has the same row count as its staging model (catches fan-out and dropped rows).
+- **Money:** `assert_money_totals_match_staging` checks that total and net transaction amounts and the total loan amount match staging.
+- **Dates:** `assert_loans_granted_after_account_opened` checks that no loan predates its account.
+- **Keys and relationships:** every fact key points to an existing dimension row; `owner_client_id` is not null and unique in dim_account (one owner per account, one account per owner).
+
+Staging:
+
 - **Keys:** every primary key is unique and not null.
 - **Relationships:** transactions, loans, dispositions and standing orders link to accounts; dispositions link to clients; cards link to dispositions; accounts and clients link to districts. 0 orphans.
 - **Accepted values** on every code column (transaction type, statement frequency, loan status, gender, disposition type, card type, region, standing-order code).
@@ -55,12 +89,14 @@ All staging models are views: they are read only by dbt and stay one-to-one with
 - **Generic column names** (`type`) get the entity as a prefix (`disp_type`, `card_type`), so they don't collide when marts join the tables. Transactions and standing orders use the same names for the partner bank and account.
 - **Checked facts:** every account has exactly one owner (4,500 owners + 869 disponents = 5,369 clients, each client appears once); loan status A 203, B 31, C 403, D 45, so 76 of 682 loans (11.1 %) are bad (B + D).
 
+- **Channel:** the source books statement fees (SLUZBY, 155,832 rows) and penalty interest (SANKC. UROK, 1,577 rows) with operation VYBER (cash withdrawal), although no cash moves. The channel CASE checks these codes first, so they count as `bank`, not `cash`. The first version got this wrong; the tests passed, and the error was found by checking the channel breakdown against the data.
+
 ## Open questions
 
-- 21,881 transactions have an empty partner bank but a filled partner account: to investigate before the marts use these columns.
+- 21,881 transactions have an empty partner bank but a filled partner account: to investigate before using these columns.
+- 2,811 SIPO and 23 POJISTNE payments are booked as cash withdrawals (VYBER); they stay in `cash`, because the source gives no other information.
 
 ## Next steps
 
-1. Marts: dimensions for account, client and district; facts for transactions and loans.
-2. Loan-risk analysis using only transactions before each loan's date, to avoid data leakage.
-3. Power BI report on top of the marts.
+1. Power BI report on the marts: bad-loan rate by loan terms, client and district; activity over time.
+2. Loan-risk analysis on the pre-loan columns of fact_loans.
