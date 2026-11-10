@@ -36,7 +36,15 @@ SELECT
 
     -- Loan terms
     l.amount,
-    l.duration,                                    -- months
+    -- Amount bands for charts. Bands are wide on purpose: 682 loans split
+    -- into many small groups would give unstable bad-loan rates.
+    CASE
+        WHEN l.amount < 100000 THEN '1: under 100k'
+        WHEN l.amount < 200000 THEN '2: 100-200k'
+        WHEN l.amount < 300000 THEN '3: 200-300k'
+        ELSE '4: 300k+'
+    END AS amount_band,                            -- number prefix keeps the sort order
+    l.duration,                                    -- months: 12, 24, 36, 48 or 60
     l.monthly_instalment,
 
     -- Outcome
@@ -62,6 +70,9 @@ SELECT
     p.pre_loan_avg_balance,
     p.pre_loan_min_balance,
     COALESCE(p.pre_loan_negative_balance_count, 0) AS pre_loan_negative_balance_count,
+    -- 1 if the balance was ever negative before the loan, else 0.
+    CASE WHEN COALESCE(p.pre_loan_negative_balance_count, 0) > 0 THEN 1 ELSE 0 END
+                                                   AS had_negative_balance_before_loan,
     -- Average money in per active month; NULLIF avoids division by zero.
     ROUND(p.pre_loan_credit_total / NULLIF(p.pre_loan_active_months, 0), 2)
                                                    AS pre_loan_avg_monthly_credit

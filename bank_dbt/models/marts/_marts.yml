@@ -214,3 +214,33 @@ models:
       - name: owner_age_at_loan
         data_tests:
           - not_null
+      - name: amount_band
+        data_tests:
+          - not_null
+      - name: had_negative_balance_before_loan
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+                quote: false
+
+  - name: agg_monthly_activity
+    description: >
+      Transactions summarised per month, district, channel and direction, for
+      the activity charts in Power BI (fact_transactions has 1 million rows,
+      too many for a CSV import). Totals must equal fact_transactions.
+    columns:
+      - name: month_start
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+      - name: district_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_district')
+                field: district_id

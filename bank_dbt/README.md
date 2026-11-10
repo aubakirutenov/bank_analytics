@@ -2,7 +2,7 @@
 
 dbt project for the Berka dataset: real, anonymized data from a Czech bank, 1993–1998. It turns the raw tables in PostgreSQL into cleaned, typed and tested staging models, and those into a tested star schema for the loan-risk analysis and Power BI.
 
-**Status (Nov 10, 2026):** staging and marts complete. 8 staging views, 6 mart tables, 1 seed, 113 tests. Power BI is next.
+**Status (Nov 10, 2026):** staging and marts complete. 8 staging views, 7 mart tables, 1 seed, 120 tests. Power BI dashboard published (see the main README).
 
 ## Stack
 
@@ -20,7 +20,7 @@ dbt debug    # checks the connection and the project
 dbt build    # loads the seed, builds every model and runs every test
 ```
 
-Expected result: `PASS=126 WARN=2 ERROR=0 TOTAL=128`. The two warnings are a known gap in the source (see Data notes).
+Expected result: `PASS=134 WARN=2 ERROR=0 TOTAL=136`. The two warnings are a known gap in the source (see Data notes).
 
 ## Star schema (marts)
 
@@ -43,6 +43,7 @@ Both facts carry the keys of every dimension they use (account, owner, district,
 | dim_account | one row per account | 4,500 | owner as a column instead of a bridge table, because every account has exactly one owner |
 | dim_client | one row per client | 5,369 | age at 1998-12-31 and age group; role on the account; card (a client has at most one) |
 | dim_district | one row per district | 77 | demographics plus the change in unemployment 1995–1996 |
+| agg_monthly_activity | one row per month, district, channel and direction | 33,813 | transaction summary for the Power BI activity charts; a test checks it still contains every transaction |
 | dim_date | one row per day | from the first to the last date in the data | year, quarter, month, weekday |
 
 Checked in `sql/04_mart_checks.sql` against the raw tables, independently of dbt: row counts and money totals match; 76 of 682 loans (11.1 %) are bad; all 892 cards belong to account owners; every loan has transaction history before it (shortest 102 days, average 398).
@@ -70,6 +71,7 @@ Marts:
 - **Grain:** `assert_marts_keep_staging_grain` checks that every mart has the same row count as its staging model (catches fan-out and dropped rows).
 - **Money:** `assert_money_totals_match_staging` checks that total and net transaction amounts and the total loan amount match staging.
 - **Dates:** `assert_loans_granted_after_account_opened` checks that no loan predates its account.
+- **Summary:** `assert_monthly_activity_matches_fact` checks that the monthly summary has the same transaction count and amount as fact_transactions.
 - **Keys and relationships:** every fact key points to an existing dimension row; `owner_client_id` is not null and unique in dim_account (one owner per account, one account per owner).
 
 Staging:
@@ -98,5 +100,4 @@ Staging:
 
 ## Next steps
 
-1. Power BI report on the marts: bad-loan rate by loan terms, client and district; activity over time.
-2. Loan-risk analysis on the pre-loan columns of fact_loans.
+1. Deeper loan-risk analysis on the pre-loan columns of fact_loans (average balance, monthly income).
