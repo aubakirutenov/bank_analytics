@@ -34,7 +34,9 @@ Expected result: `PASS=134 WARN=2 ERROR=0 TOTAL=136`. The two warnings are a kno
                   dim_district
 ```
 
-Both facts carry the keys of every dimension they use (account, owner, district, date), so each dimension connects directly to the facts and no dimension connects to another one.
+Both facts carry the keys of every dimension they use (account, owner, district, date), so each dimension connects directly to the facts and no dimension connects to another one. `agg_monthly_activity` is built from `fact_transactions` and sits outside the star: it is a pre-aggregated table for the activity charts in Power BI.
+
+Build order (from `ref()`): sources → staging views → dimensions → facts → `agg_monthly_activity`. Staging models are views; marts are tables, because Power BI reads them often.
 
 | Table | Grain | Rows | Key decisions |
 | --- | --- | --- | --- |
@@ -44,7 +46,7 @@ Both facts carry the keys of every dimension they use (account, owner, district,
 | dim_client | one row per client | 5,369 | age at 1998-12-31 and age group; role on the account; card (a client has at most one) |
 | dim_district | one row per district | 77 | demographics plus the change in unemployment 1995–1996 |
 | agg_monthly_activity | one row per month, district, channel and direction | 33,813 | transaction summary for the Power BI activity charts; a test checks it still contains every transaction |
-| dim_date | one row per day | from the first to the last date in the data | year, quarter, month, weekday |
+| dim_date | one row per day | 2,191 | 1993-01-01 to 1998-12-31 with no gaps, so days without transactions still exist; year, quarter, month, weekday, weekend flag |
 
 Checked in `sql/04_mart_checks.sql` against the raw tables, independently of dbt: row counts and money totals match; 76 of 682 loans (11.1 %) are bad; all 892 cards belong to account owners; every loan has transaction history before it (shortest 102 days, average 398).
 
@@ -90,7 +92,6 @@ Staging:
 - **District 69 (Jeseník)** has no 1995 unemployment rate and no 1995 crime count (`'?'` in the source). Both become NULL; their `not_null` tests use `severity: warn`, so the gap is documented without failing the build.
 - **Generic column names** (`type`) get the entity as a prefix (`disp_type`, `card_type`), so they don't collide when marts join the tables. Transactions and standing orders use the same names for the partner bank and account.
 - **Checked facts:** every account has exactly one owner (4,500 owners + 869 disponents = 5,369 clients, each client appears once); loan status A 203, B 31, C 403, D 45, so 76 of 682 loans (11.1 %) are bad (B + D).
-
 - **Channel:** the source books statement fees (SLUZBY, 155,832 rows) and penalty interest (SANKC. UROK, 1,577 rows) with operation VYBER (cash withdrawal), although no cash moves. The channel CASE checks these codes first, so they count as `bank`, not `cash`. The first version got this wrong; the tests passed, and the error was found by checking the channel breakdown against the data.
 
 ## Open questions
@@ -100,4 +101,28 @@ Staging:
 
 ## Next steps
 
-1. Deeper loan-risk analysis on the pre-loan columns of fact_loans (average balance, monthly income).
+1. Deeper loan-risk analysis on the pre-loan columns of `fact_loans` (average and minimum balance, monthly income), with a minimum group size so small groups don't mislead.
+2. Resolve the two open questions above before using the partner-bank columns or the SIPO/POJISTNE split.
+3. Generate the dbt documentation site (`dbt docs generate`) and add the lineage graph to this README.
+
+## Project structure
+
+```
+bank_dbt/
+├── dbt_project.yml          project settings: staging = views, marts = tables
+├── models/
+│   ├── staging/
+│   │   ├── _sources.yml     the raw tables in schema raw
+│   │   ├── _stg_models.yml  descriptions and tests for staging
+│   │   └── stg_*.sql        8 staging models, one per raw table
+│   └── marts/
+│       ├── _marts.yml       descriptions and tests for the marts
+│       ├── dim_*.sql        account, client, district, date
+│       ├── fact_*.sql       transactions, loans
+│       └── agg_monthly_activity.sql
+├── seeds/
+│   └── berka_codes.csv      Czech codes with Czech and English labels
+└── tests/
+    ├── assert_codes_have_labels.sql
+    └── marts/               4 singular tests: grain, money, dates, summary
+```
