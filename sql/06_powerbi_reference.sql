@@ -56,3 +56,28 @@ SELECT EXTRACT(YEAR FROM month_start)::int AS year,
 FROM bank_dev.agg_monthly_activity
 GROUP BY 1
 ORDER BY 1;
+
+-- 8. Calendar size (checks the dim_date row count in bank_dbt/README.md).
+--    Expected: 2,191 days, 1993-01-01 to 1998-12-31.
+SELECT COUNT(*), MIN(date_day), MAX(date_day) FROM bank_dev.dim_date;
+
+-- 9. Leakage check for the overdraft finding (query 4).
+--    For the 27 loans with a negative balance before the loan:
+--    when was the first negative balance, compared with the loan date?
+SELECT l.loan_id, l.status, l.granted_date,
+       MIN(t.trans_date) AS first_negative_date,
+       l.granted_date - MIN(t.trans_date) AS days_before_loan,
+       MIN(t.balance_after) AS lowest_balance
+FROM bank_dev.fact_loans l
+JOIN bank_dev.fact_transactions t
+  ON t.account_id = l.account_id
+ AND t.trans_date < l.granted_date
+ AND t.balance_after < 0
+WHERE l.had_negative_balance_before_loan = 1
+GROUP BY l.loan_id, l.status, l.granted_date
+ORDER BY days_before_loan;
+
+-- 10. Accounts opened per year (behind the growth in activity, query 7).
+SELECT EXTRACT(YEAR FROM opened_date)::int AS year, COUNT(*) AS accounts_opened
+FROM bank_dev.dim_account
+GROUP BY 1 ORDER BY 1;
